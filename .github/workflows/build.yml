@@ -14,11 +14,19 @@ jobs:
           distribution: temurin
           java-version: '17'
       - name: Giai nen du an
-        run: unzip -q ./*.zip -d proj
+        run: |
+          ls -la
+          N=$(ls ./*.zip 2>/dev/null | wc -l)
+          if [ "$N" -ne 1 ]; then echo "LOI: can dung 1 file .zip o thu muc goc, hien co $N file:"; ls ./*.zip; exit 1; fi
+          unzip -q ./*.zip -d proj
+          ls proj
       - name: Khoa ky ung dung
         env:
           KS: ${{ secrets.KEYSTORE_B64 }}
-        run: echo "$KS" | base64 -d > proj/app/release.keystore
+        run: |
+          if [ -z "$KS" ]; then echo "LOI: chua co secret KEYSTORE_B64 (Settings > Secrets and variables > Actions)"; exit 1; fi
+          printf %s "$KS" | tr -d ' \r\n' | base64 -d > proj/app/release.keystore || { echo "LOI: noi dung KEYSTORE_B64 khong dung, hay dan lai toan bo file KEYSTORE-BASE64.txt"; exit 1; }
+          keytool -list -keystore proj/app/release.keystore -storetype pkcs12 -storepass cftime2026 -alias cftime || { echo "LOI: khoa ky khong hop le"; exit 1; }
       - name: Android SDK
         run: |
           yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
