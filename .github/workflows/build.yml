@@ -2,6 +2,8 @@ name: Build APK
 on:
   push:
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -13,6 +15,10 @@ jobs:
           java-version: '17'
       - name: Giai nen du an
         run: unzip -q ./*.zip -d proj
+      - name: Khoa ky ung dung
+        env:
+          KS: ${{ secrets.KEYSTORE_B64 }}
+        run: echo "$KS" | base64 -d > proj/app/release.keystore
       - name: Android SDK
         run: |
           yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
@@ -22,8 +28,12 @@ jobs:
           gradle-version: '8.5'
       - name: Build
         working-directory: proj
-        run: gradle --no-daemon assembleDebug
-      - uses: actions/upload-artifact@v4
+        run: gradle --no-daemon assembleRelease -PversionCode=${{ github.run_number }} -PversionName=1.0.${{ github.run_number }}
+      - name: Dat ten file
+        run: cp proj/app/build/outputs/apk/release/app-release.apk CFTime.apk
+      - uses: softprops/action-gh-release@v2
         with:
-          name: CFTime-apk
-          path: proj/app/build/outputs/apk/debug/app-debug.apk
+          tag_name: v${{ github.run_number }}
+          name: CFTime v${{ github.run_number }}
+          files: CFTime.apk
+          make_latest: true
